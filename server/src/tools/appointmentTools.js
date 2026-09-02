@@ -25,6 +25,21 @@ async function bookAppointmentTool({
   startTime,
   reason,
 }) {
+  // Safety check before booking
+  const availability = await checkAvailability(
+    doctorId,
+    appointmentDate,
+    startTime
+  );
+
+  if (!availability.available) {
+    return {
+      success: false,
+      message: availability.message,
+      alternatives: availability.alternatives,
+    };
+  }
+
   const appointment = await createAppointment({
     patientId,
     doctorId,

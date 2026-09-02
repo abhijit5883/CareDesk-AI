@@ -1,28 +1,98 @@
-require("dotenv").config();
-
 const { askAI } = require("./services/aiService");
 
 async function test() {
+  console.log("\n==============================");
+  console.log("   ALTERNATIVE SLOT TEST");
+  console.log("==============================\n");
+
   let previousMessages = [];
 
-  const patientMessages = [
-    "I am patient 3. I want an appointment with doctor 1 tomorrow at 5:30 PM.",
-    "Yes, book it"
-  ];
+  // ==========================================================
+  // STEP 1: Request an unavailable slot
+  // ==========================================================
 
-  for (const message of patientMessages) {
-    console.log("\nPATIENT:");
-    console.log(message);
+  const firstMessage =
+    "I am patient 3. I want an appointment tomorrow at 6:30 PM with doctor 1.";
 
-    const result = await askAI(message, previousMessages, true);
+  console.log("PATIENT:");
+  console.log(firstMessage);
 
-    console.log("\nAI:");
-    console.log(result.response);
+  let result = await askAI(
+    firstMessage,
+    previousMessages,
+    true // Enable booking/modifications
+  );
 
-    // VERY IMPORTANT:
-    // Keep the conversation history
-    previousMessages = result.messages;
-  }
+  console.log("\nAI:");
+  console.log(result.response);
+
+  previousMessages = result.messages;
+
+  // ==========================================================
+  // STEP 2: Ambiguous confirmation
+  // AI should NOT choose an alternative automatically
+  // ==========================================================
+
+  const secondMessage = "Yes, book it.";
+
+  console.log("\nPATIENT:");
+  console.log(secondMessage);
+
+  result = await askAI(
+    secondMessage,
+    previousMessages,
+    true
+  );
+
+  console.log("\nAI:");
+  console.log(result.response);
+
+  previousMessages = result.messages;
+
+  // ==========================================================
+  // STEP 3: Patient explicitly selects alternative
+  // ==========================================================
+
+  const thirdMessage = "7:00 PM";
+
+  console.log("\nPATIENT:");
+  console.log(thirdMessage);
+
+  result = await askAI(
+    thirdMessage,
+    previousMessages,
+    true
+  );
+
+  console.log("\nAI:");
+  console.log(result.response);
+
+  previousMessages = result.messages;
+
+  // ==========================================================
+  // STEP 4: Explicit confirmation
+  // ==========================================================
+
+  const fourthMessage = "Yes, book it.";
+
+  console.log("\nPATIENT:");
+  console.log(fourthMessage);
+
+  result = await askAI(
+    fourthMessage,
+    previousMessages,
+    true
+  );
+
+  console.log("\nAI:");
+  console.log(result.response);
+
+  console.log("\n==============================");
+  console.log("       TEST COMPLETED");
+  console.log("==============================\n");
 }
 
-test();
+test().catch((error) => {
+  console.error("\n❌ TEST ERROR:");
+  console.error(error);
+});

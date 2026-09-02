@@ -1,3 +1,5 @@
+const prisma = require("../db");
+
 const {
   checkAvailability,
   createAppointment,
@@ -183,9 +185,83 @@ async function rescheduleAppointmentController(req, res) {
     });
   }
 }
+async function getAppointmentsController(req, res) {
+  try {
+    const appointments = await prisma.appointment.findMany({
+      include: {
+        patient: true,
+        doctor: true,
+      },
+      orderBy: [
+        {
+          appointmentDate: "asc",
+        },
+        {
+          startTime: "asc",
+        },
+      ],
+    });
+
+    res.json({
+      success: true,
+      appointments,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch appointments",
+    });
+  }
+}
+
+async function getAppointmentByIdController(req, res) {
+  try {
+    const appointmentId = Number(req.params.id);
+
+    if (!Number.isInteger(appointmentId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid appointment ID",
+      });
+    }
+
+    const appointment = await prisma.appointment.findUnique({
+      where: {
+        id: appointmentId,
+      },
+      include: {
+        patient: true,
+        doctor: true,
+      },
+    });
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      appointment,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch appointment",
+    });
+  }
+}
 module.exports = {
   checkAvailabilityController,
   createAppointmentController,
   cancelAppointmentController,
   rescheduleAppointmentController,
+  getAppointmentsController,
+  getAppointmentByIdController,
 };
