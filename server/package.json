@@ -16,6 +16,7 @@
     "@google/genai": "^2.18.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "cors": "^2.8.6",
     "express": "^5.2.1",
     "openai": "^7.5.0",
     "pg": "^8.23.0",
