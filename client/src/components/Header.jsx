@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Bot, Clock, RefreshCw, Sun, Search, Sparkles } from "lucide-react";
+import { Plus, Bot, Clock, RefreshCw, LogOut, UserCheck, Shield } from "lucide-react";
 
-export function Header({ onOpenNewAppointment, onOpenNewPatient, onOpenAI, onRefresh, isRefreshing }) {
+export function Header({ 
+  onOpenNewAppointment, 
+  onOpenNewPatient, 
+  onOpenNewDoctor,
+  onOpenAI, 
+  onRefresh, 
+  isRefreshing,
+  admin,
+  onLogout
+}) {
   const [time, setTime] = useState(new Date().toLocaleTimeString());
   const [date, setDate] = useState(new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
 
@@ -58,8 +67,16 @@ export function Header({ onOpenNewAppointment, onOpenNewPatient, onOpenAI, onRef
         </button>
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons & Admin Profile */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <button 
+          className="btn btn-secondary"
+          onClick={onOpenNewDoctor}
+        >
+          <Plus size={16} />
+          New Doctor
+        </button>
+
         <button 
           className="btn btn-secondary"
           onClick={onOpenNewPatient}
@@ -83,7 +100,60 @@ export function Header({ onOpenNewAppointment, onOpenNewPatient, onOpenAI, onRef
           <Bot size={17} />
           Ask AI Receptionist
         </button>
+
+        {/* User Profile Pill & Logout */}
+        {admin && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            paddingLeft: "8px",
+            borderLeft: "1px solid var(--border-color)",
+            marginLeft: "4px"
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "5px 12px",
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: "var(--radius-full)",
+              fontSize: "0.82rem",
+            }}>
+              <div style={{
+                width: "24px",
+                height: "24px",
+                borderRadius: "50%",
+                background: "#0284c7",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "700",
+                fontSize: "0.75rem"
+              }}>
+                {admin.name ? admin.name.charAt(0).toUpperCase() : "A"}
+              </div>
+              <div>
+                <div style={{ fontWeight: "700", color: "#0f172a", lineHeight: 1.1 }}>
+                  {admin.name || "Clinic Admin"}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={onLogout}
+              className="btn btn-icon btn-danger"
+              style={{ padding: "8px" }}
+              title="Sign Out"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );
 }
+

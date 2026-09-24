@@ -4,7 +4,7 @@ const {
   cancelAppointment,
   rescheduleAppointment,
   findPatientAppointment,
-} = require("../services/appointmentService");
+} = require("../modules/appointments/appointmentService");
 
 async function checkAvailabilityTool({
   doctorId,

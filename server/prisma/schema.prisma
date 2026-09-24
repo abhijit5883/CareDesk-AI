@@ -10,26 +10,64 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
-model Patient {
-  id           Int           @id @default(autoincrement())
-  name         String
-  phone        String        @unique
-  email        String?
-  createdAt    DateTime      @default(now())
 
-  appointments Appointment[]
+model Clinic {
+  id            Int      @id @default(autoincrement())
+  name          String
+  address       String?
+  phone         String?
+  email         String?
+  whatsappNumber String?
+  aiPhoneNumber String?
+  createdAt     DateTime @default(now())
+
+  admins        Admin[]
+  patients      Patient[]
+  doctors       Doctor[]
+  appointments  Appointment[]
 }
+
+model Admin {
+  id             Int      @id @default(autoincrement())
+  clinicId       Int
+  name           String
+  email          String   @unique
+  passwordHash   String?
+  googleId       String?  @unique
+  emailVerified  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  clinic         Clinic   @relation(fields: [clinicId], references: [id])
+}
+
+model Patient {
+  id           Int      @id @default(autoincrement())
+  clinicId     Int
+  name         String
+  phone        String
+  email        String?
+  createdAt    DateTime @default(now())
+
+  clinic       Clinic   @relation(fields: [clinicId], references: [id])
+  appointments Appointment[]
+
+  @@unique([clinicId, phone])
+}
+
 model Doctor {
   id             Int              @id @default(autoincrement())
+  clinicId       Int
   name           String
   specialization String
   phone          String?
   email          String?
   createdAt      DateTime         @default(now())
 
+  clinic         Clinic           @relation(fields: [clinicId], references: [id])
   schedules      DoctorSchedule[]
   appointments   Appointment[]
 }
+
 model DoctorSchedule {
   id        Int      @id @default(autoincrement())
   doctorId  Int
@@ -41,18 +79,21 @@ model DoctorSchedule {
 
   @@unique([doctorId, dayOfWeek, startTime])
 }
-model Appointment {
-  id            Int      @id @default(autoincrement())
-  patientId     Int
-  doctorId      Int
-  appointmentDate DateTime
-  startTime     String
-  reason        String?
-  status        String   @default("BOOKED")
-  createdAt     DateTime @default(now())
 
-  patient       Patient  @relation(fields: [patientId], references: [id])
-  doctor        Doctor   @relation(fields: [doctorId], references: [id])
+model Appointment {
+  id              Int      @id @default(autoincrement())
+  clinicId        Int
+  patientId       Int
+  doctorId        Int
+  appointmentDate DateTime
+  startTime       String
+  reason          String?
+  status          String   @default("BOOKED")
+  createdAt       DateTime @default(now())
+
+  clinic          Clinic   @relation(fields: [clinicId], references: [id])
+  patient         Patient  @relation(fields: [patientId], references: [id])
+  doctor          Doctor   @relation(fields: [doctorId], references: [id])
 
   @@unique([doctorId, appointmentDate, startTime])
 }

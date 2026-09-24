@@ -16,8 +16,11 @@
     "@google/genai": "^2.18.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "openai": "^7.5.0",
     "pg": "^8.23.0",
     "prisma": "^7.9.1"
