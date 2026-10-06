@@ -1,31 +1,38 @@
 const prisma = require("../../db");
 
+// --------------------------------------------------
+// GENERATE TIME SLOTS
+// --------------------------------------------------
+
 function generateSlots() {
   const slots = [];
 
   // Morning: 10:00 - 13:30
-  for (let minutes = 10 * 60; minutes < 14 * 60; minutes += 30) {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+for (
+  let minutes = 10 * 60;
+  minutes < 13 * 60 + 30;
+  minutes += 30
+) {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
 
-    slots.push(
-      `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`,
-    );
-  }
+  slots.push(
+    `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`
+  );
+}
 
   // Evening: 16:00 - 19:30
-  for (let minutes = 16 * 60; minutes < 20 * 60; minutes += 30) {
+  for (let minutes = 16 * 60; minutes < 21 * 60-30; minutes += 30) {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
 
     slots.push(
-      `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`,
+      `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`
     );
   }
 
   return slots;
 }
-
 
 // --------------------------------------------------
 // DATE VALIDATION
@@ -41,11 +48,9 @@ function validateAppointmentDate(appointmentDate) {
   }
 
   const today = new Date();
-
   today.setUTCHours(0, 0, 0, 0);
 
   const maxDate = new Date(today);
-
   maxDate.setUTCDate(maxDate.getUTCDate() + 7);
 
   // Past date
@@ -65,7 +70,6 @@ function validateAppointmentDate(appointmentDate) {
   return requestedDate;
 }
 
-
 // --------------------------------------------------
 // CHECK AVAILABILITY
 // --------------------------------------------------
@@ -73,11 +77,14 @@ function validateAppointmentDate(appointmentDate) {
 async function checkAvailability(
   doctorId,
   appointmentDate,
-  startTime
+  startTime,
+  clinicId
 ) {
-  const doctor = await prisma.doctor.findUnique({
+  // Make sure doctor belongs to current clinic
+  const doctor = await prisma.doctor.findFirst({
     where: {
       id: Number(doctorId),
+      clinicId: Number(clinicId),
     },
   });
 
@@ -122,10 +129,11 @@ async function checkAvailability(
     };
   }
 
-  // Get booked appointments
+  // Get booked appointments for this clinic + doctor
   const bookedAppointments =
     await prisma.appointment.findMany({
       where: {
+        clinicId: Number(clinicId),
         doctorId: Number(doctorId),
         appointmentDate: date,
         status: "BOOKED",
@@ -149,8 +157,7 @@ async function checkAvailability(
   }
 
   // Requested slot already booked
-  const requestedIndex =
-    allSlots.indexOf(startTime);
+  const requestedIndex = allSlots.indexOf(startTime);
 
   const alternatives = [];
 
@@ -159,32 +166,21 @@ async function checkAvailability(
     distance < allSlots.length;
     distance++
   ) {
-    const beforeIndex =
-      requestedIndex - distance;
-
-    const afterIndex =
-      requestedIndex + distance;
+    const beforeIndex = requestedIndex - distance;
+    const afterIndex = requestedIndex + distance;
 
     if (
       beforeIndex >= 0 &&
-      !bookedTimes.includes(
-        allSlots[beforeIndex]
-      )
+      !bookedTimes.includes(allSlots[beforeIndex])
     ) {
-      alternatives.push(
-        allSlots[beforeIndex]
-      );
+      alternatives.push(allSlots[beforeIndex]);
     }
 
     if (
       afterIndex < allSlots.length &&
-      !bookedTimes.includes(
-        allSlots[afterIndex]
-      )
+      !bookedTimes.includes(allSlots[afterIndex])
     ) {
-      alternatives.push(
-        allSlots[afterIndex]
-      );
+      alternatives.push(allSlots[afterIndex]);
     }
 
     if (alternatives.length >= 2) {
@@ -199,12 +195,12 @@ async function checkAvailability(
   };
 }
 
-
 // --------------------------------------------------
 // CREATE APPOINTMENT
 // --------------------------------------------------
 
 async function createAppointment({
+  clinicId,
   patientId,
   doctorId,
   appointmentDate,
@@ -213,29 +209,30 @@ async function createAppointment({
 }) {
   // Required fields
   if (
+    !clinicId ||
     !patientId ||
     !doctorId ||
     !appointmentDate ||
     !startTime
   ) {
     throw new Error(
-      "patientId, doctorId, appointmentDate and startTime are required"
+      "clinicId, patientId, doctorId, appointmentDate and startTime are required"
     );
   }
 
   // Validate IDs
   if (
+    !Number.isInteger(Number(clinicId)) ||
     !Number.isInteger(Number(patientId)) ||
     !Number.isInteger(Number(doctorId))
   ) {
     throw new Error(
-      "Patient ID and Doctor ID must be valid numbers"
+      "Clinic ID, Patient ID and Doctor ID must be valid numbers"
     );
   }
 
   // Validate date + booking window
-  const date =
-    validateAppointmentDate(appointmentDate);
+  const date = validateAppointmentDate(appointmentDate);
 
   // Sunday
   if (date.getUTCDay() === 0) {
@@ -248,43 +245,38 @@ async function createAppointment({
   const allSlots = generateSlots();
 
   if (!allSlots.includes(startTime)) {
-    throw new Error(
-      "Invalid appointment time"
-    );
+    throw new Error("Invalid appointment time");
   }
 
-  // Check patient
-  const patient =
-    await prisma.patient.findUnique({
-      where: {
-        id: Number(patientId),
-      },
-    });
+  // Check patient belongs to clinic
+  const patient = await prisma.patient.findFirst({
+    where: {
+      id: Number(patientId),
+      clinicId: Number(clinicId),
+    },
+  });
 
   if (!patient) {
-    throw new Error(
-      "Patient not found"
-    );
+    throw new Error("Patient not found");
   }
 
-  // Check doctor
-  const doctor =
-    await prisma.doctor.findUnique({
-      where: {
-        id: Number(doctorId),
-      },
-    });
+  // Check doctor belongs to clinic
+  const doctor = await prisma.doctor.findFirst({
+    where: {
+      id: Number(doctorId),
+      clinicId: Number(clinicId),
+    },
+  });
 
   if (!doctor) {
-    throw new Error(
-      "Doctor not found"
-    );
+    throw new Error("Doctor not found");
   }
 
   // Check existing appointment
   const existingAppointment =
     await prisma.appointment.findFirst({
       where: {
+        clinicId: Number(clinicId),
         doctorId: Number(doctorId),
         appointmentDate: date,
         startTime,
@@ -322,6 +314,7 @@ async function createAppointment({
   // Create new appointment
   return prisma.appointment.create({
     data: {
+      clinicId: Number(clinicId),
       patientId: Number(patientId),
       doctorId: Number(doctorId),
       appointmentDate: date,
@@ -332,25 +325,24 @@ async function createAppointment({
   });
 }
 
-
 // --------------------------------------------------
 // CANCEL APPOINTMENT
 // --------------------------------------------------
 
 async function cancelAppointment(
-  appointmentId
+  appointmentId,
+  clinicId
 ) {
   const appointment =
-    await prisma.appointment.findUnique({
+    await prisma.appointment.findFirst({
       where: {
         id: Number(appointmentId),
+        clinicId: Number(clinicId),
       },
     });
 
   if (!appointment) {
-    throw new Error(
-      "Appointment not found"
-    );
+    throw new Error("Appointment not found");
   }
 
   if (
@@ -372,7 +364,6 @@ async function cancelAppointment(
   });
 }
 
-
 // --------------------------------------------------
 // RESCHEDULE APPOINTMENT
 // --------------------------------------------------
@@ -380,19 +371,19 @@ async function cancelAppointment(
 async function rescheduleAppointment(
   appointmentId,
   newDate,
-  newTime
+  newTime,
+  clinicId
 ) {
   const appointment =
-    await prisma.appointment.findUnique({
+    await prisma.appointment.findFirst({
       where: {
         id: Number(appointmentId),
+        clinicId: Number(clinicId),
       },
     });
 
   if (!appointment) {
-    throw new Error(
-      "Appointment not found"
-    );
+    throw new Error("Appointment not found");
   }
 
   if (
@@ -408,14 +399,14 @@ async function rescheduleAppointment(
     await checkAvailability(
       appointment.doctorId,
       newDate,
-      newTime
+      newTime,
+      clinicId
     );
 
   if (!availability.available) {
-    const error =
-      new Error(
-        "New slot is not available"
-      );
+    const error = new Error(
+      "New slot is not available"
+    );
 
     error.alternatives =
       availability.alternatives;
@@ -439,18 +430,19 @@ async function rescheduleAppointment(
   });
 }
 
-
 // --------------------------------------------------
 // FIND PATIENT APPOINTMENT
 // --------------------------------------------------
 
 async function findPatientAppointment({
+  clinicId,
   patientId,
   doctorId,
   appointmentDate,
   startTime,
 }) {
   const where = {
+    clinicId: Number(clinicId),
     patientId: Number(patientId),
     status: "BOOKED",
   };
@@ -493,7 +485,6 @@ async function findPatientAppointment({
     appointment,
   };
 }
-
 
 // --------------------------------------------------
 // EXPORTS

@@ -7,6 +7,7 @@ const {
 } = require("../modules/appointments/appointmentService");
 
 async function checkAvailabilityTool({
+  clinicId,
   doctorId,
   appointmentDate,
   startTime,
@@ -14,22 +15,24 @@ async function checkAvailabilityTool({
   return await checkAvailability(
     doctorId,
     appointmentDate,
-    startTime
+    startTime,
+    clinicId
   );
 }
 
 async function bookAppointmentTool({
+  clinicId,
   patientId,
   doctorId,
   appointmentDate,
   startTime,
   reason,
 }) {
-  // Safety check before booking
   const availability = await checkAvailability(
     doctorId,
     appointmentDate,
-    startTime
+    startTime,
+    clinicId
   );
 
   if (!availability.available) {
@@ -41,6 +44,7 @@ async function bookAppointmentTool({
   }
 
   const appointment = await createAppointment({
+    clinicId,
     patientId,
     doctorId,
     appointmentDate,
@@ -56,43 +60,38 @@ async function bookAppointmentTool({
 }
 
 async function cancelAppointmentTool({
+  clinicId,
   appointmentId,
 }) {
-  const appointment = await cancelAppointment(
-    appointmentId
+  return await cancelAppointment(
+    appointmentId,
+    clinicId
   );
-
-  return {
-    success: true,
-    message: "Appointment cancelled successfully",
-    appointment,
-  };
 }
 
 async function rescheduleAppointmentTool({
+  clinicId,
   appointmentId,
   newDate,
   newTime,
 }) {
-  const appointment = await rescheduleAppointment(
+  return await rescheduleAppointment(
     appointmentId,
     newDate,
-    newTime
+    newTime,
+    clinicId
   );
-
-  return {
-    success: true,
-    message: "Appointment rescheduled successfully",
-    appointment,
-  };
 }
+
 async function findPatientAppointmentTool({
+  clinicId,
   patientId,
   doctorId,
   appointmentDate,
   startTime,
 }) {
   return await findPatientAppointment({
+    clinicId,
     patientId,
     doctorId,
     appointmentDate,

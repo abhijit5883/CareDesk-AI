@@ -2,7 +2,11 @@ const { askAI } = require("./aiService");
 
 async function chatWithAI(req, res) {
   try {
-    const { message, previousMessages, allowBooking = true } = req.body;
+    const {
+      message,
+      previousMessages,
+      allowBooking = true,
+    } = req.body;
 
     if (!message || typeof message !== "string") {
       return res.status(400).json({
@@ -11,7 +15,12 @@ async function chatWithAI(req, res) {
       });
     }
 
-    const result = await askAI(message, previousMessages || [], allowBooking);
+    const result = await askAI(
+      message,
+      previousMessages || [],
+      allowBooking,
+      req.clinicId
+    );
 
     res.json({
       success: true,
@@ -20,9 +29,11 @@ async function chatWithAI(req, res) {
     });
   } catch (error) {
     console.error("AI Chat Error:", error);
+
     res.status(500).json({
       success: false,
-      message: error.message || "Failed to process message with AI Receptionist",
+      message:
+        error.message || "Failed to process message with AI Receptionist",
     });
   }
 }
