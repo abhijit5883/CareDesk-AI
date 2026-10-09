@@ -11,13 +11,15 @@ import { AuthPage } from "./modules/authentication/AuthPage";
 import { Footer } from "./components/Footer";
 import { api } from "./services/api";
 import { AlertCircle, RefreshCw } from "lucide-react";
-
+import PrivacyPolicy from "./PrivacyPolicy";
 export default function App() {
+  
   const [activeTab, setActiveTab] = useState("overview");
 
   // ==========================================
   // AUTHENTICATION STATE
   // ==========================================
+  
 
   const [admin, setAdmin] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -161,6 +163,9 @@ export default function App() {
   // ==========================================
   // AUTH LOADING SCREEN
   // ==========================================
+    if (window.location.pathname === "/privacy-policy") {
+    return <PrivacyPolicy />;
+  }
 
   if (authLoading) {
     return (

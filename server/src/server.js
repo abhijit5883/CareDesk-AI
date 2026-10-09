@@ -8,6 +8,7 @@ const doctorRoutes = require("./modules/doctors/doctorRoutes");
 const dashboardRoutes = require("./modules/dashboard/dashboardRoutes");
 const aiRoutes = require("./modules/ai/aiRoutes");
 const authRoutes = require("./modules/authentication/authRoutes");
+const whatsappRoutes = require("./modules/whatsapp/whatsappRoutes");
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use("/api/appointments", appointmentRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/whatsapp", whatsappRoutes);
 
 // ===============================
 // SERVER
