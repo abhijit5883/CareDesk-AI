@@ -834,9 +834,14 @@ Email is optional.
         // ====================================================
 
         else if (toolName === "find_patient") {
-          result = await findPatientTool({
-            ...args,
+          // For WhatsApp/voice, the platform-provided caller number is
+          // authoritative. Never let the model substitute another number.
+          const patientLookupArgs = callerPhone
+            ? { phone: callerPhone }
+            : args;
 
+          result = await findPatientTool({
+            ...patientLookupArgs,
             clinicId,
           });
         }
@@ -868,9 +873,14 @@ Email is optional.
         // ====================================================
 
         else if (toolName === "create_patient") {
-          result = await createPatientTool({
-            ...args,
+          // For WhatsApp/voice, always persist the trusted caller number,
+          // not a phone number generated or supplied by the model.
+          const patientCreateArgs = callerPhone
+            ? { ...args, phone: callerPhone }
+            : args;
 
+          result = await createPatientTool({
+            ...patientCreateArgs,
             clinicId,
           });
         }
