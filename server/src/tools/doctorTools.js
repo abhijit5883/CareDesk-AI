@@ -1,5 +1,6 @@
 const {
   findDoctor,
+  listDoctors,
 } = require("../modules/doctors/doctorService");
 
 async function findDoctorTool({
@@ -27,6 +28,25 @@ async function findDoctorTool({
   };
 }
 
+async function listDoctorsTool({ clinicId }) {
+  const doctors = await listDoctors(clinicId);
+
+  if (doctors.length === 0) {
+    return {
+      success: true,
+      doctors: [],
+      message:
+        "No doctors are currently registered at this hospital.",
+    };
+  }
+
+  return {
+    success: true,
+    doctors,
+  };
+}
+
 module.exports = {
   findDoctorTool,
+  listDoctorsTool,
 };

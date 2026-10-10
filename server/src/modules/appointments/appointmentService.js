@@ -7,22 +7,28 @@ const prisma = require("../../db");
 function generateSlots() {
   const slots = [];
 
-  // Morning: 10:00 - 13:30
-for (
-  let minutes = 10 * 60;
-  minutes < 13 * 60 + 30;
-  minutes += 30
-) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+  // Morning: 10:00 AM - 2:00 PM
+  // Last appointment starts at 13:30, ends at 14:00.
+  for (
+    let minutes = 10 * 60;
+    minutes < 14 * 60;
+    minutes += 30
+  ) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
 
-  slots.push(
-    `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`
-  );
-}
+    slots.push(
+      `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`
+    );
+  }
 
-  // Evening: 16:00 - 19:30
-  for (let minutes = 16 * 60; minutes < 21 * 60-30; minutes += 30) {
+  // Evening: 4:00 PM - 8:00 PM
+  // Last appointment starts at 19:30, ends at 20:00.
+  for (
+    let minutes = 16 * 60;
+    minutes < 20 * 60;
+    minutes += 30
+  ) {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
 

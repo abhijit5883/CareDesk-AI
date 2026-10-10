@@ -40,4 +40,25 @@ async function findDoctor(clinicId, name) {
   return doctors;
 }
 
-module.exports = { findDoctor };
+/**
+ * List all doctors belonging to a specific clinic.
+ * Returns only patient-appropriate fields.
+ */
+async function listDoctors(clinicId) {
+  const doctors = await prisma.doctor.findMany({
+    where: {
+      clinicId: Number(clinicId),
+    },
+    select: {
+      name: true,
+      specialization: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
+
+  return doctors;
+}
+
+module.exports = { findDoctor, listDoctors };
