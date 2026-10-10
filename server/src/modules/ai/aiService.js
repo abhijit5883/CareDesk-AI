@@ -446,7 +446,7 @@ async function askAI(
   previousMessages = [],
   allowBooking = false,
   clinicId,
-  { callerPhone } = {}
+  { callerPhone, preserveToolHistory = false } = {}
 ) {
   // ==========================================================
   // BASIC VALIDATION
@@ -482,18 +482,42 @@ async function askAI(
       return false;
     }
 
+    // WhatsApp history is kept by the server and may include assistant
+    // tool-call messages plus matching tool results. Preserve these only
+    // for that trusted server-side conversation, never for dashboard input.
+    if (preserveToolHistory) {
+      if (msg.role === "user") {
+        return typeof msg.content === "string" && msg.content.trim().length > 0;
+      }
+
+      if (msg.role === "assistant") {
+        const hasText =
+          typeof msg.content === "string" && msg.content.trim().length > 0;
+        const hasToolCalls =
+          Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0;
+        return hasText || hasToolCalls;
+      }
+
+      if (msg.role === "tool") {
+        return (
+          typeof msg.tool_call_id === "string" &&
+          typeof msg.content === "string"
+        );
+      }
+
+      return false;
+    }
+
+    // Dashboard history is client-provided, so accept only plain text
+    // user/assistant messages and never trust client-supplied tool results.
     if (!["user", "assistant"].includes(msg.role)) {
       return false;
     }
 
-    if (
-      typeof msg.content !== "string" ||
-      !msg.content.trim()
-    ) {
-      return false;
-    }
-
-    return true;
+    return (
+      typeof msg.content === "string" &&
+      msg.content.trim().length > 0
+    );
   });
 
   // ==========================================================
