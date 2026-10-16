@@ -1,4 +1,5 @@
 const { verifyWebhook, handleIncomingWebhook } = require("./whatsappService");
+const { isValidMetaSignature } = require("./whatsappSecurity");
 
 /**
  * GET /api/whatsapp/webhook
@@ -19,7 +20,20 @@ const verifyWebhookController = (req, res) => {
  * Returns 200 immediately so Meta does not retry.
  */
 const incomingWebhookController = (req, res) => {
-  handleIncomingWebhook(req.body);
+  if (
+    !isValidMetaSignature(
+      req.rawBody,
+      req.get("x-hub-signature-256"),
+      process.env.META_APP_SECRET
+    )
+  ) {
+    return res.sendStatus(401);
+  }
+
+  // Acknowledge only after authenticity has been checked.
+  void handleIncomingWebhook(req.body).catch((error) => {
+    console.error("[WhatsApp] Webhook processing failed:", error.message);
+  });
   return res.sendStatus(200);
 };
 

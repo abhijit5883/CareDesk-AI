@@ -20,9 +20,18 @@
 require("dotenv").config();
 
 const { askAI } = require("../ai/aiService");
+const prisma = require("../../db");
 
-const DEMO_CLINIC_ID = 1;
-const DEMO_PHONE_NUMBER_ID = "1417503314772648";
+function getClinicIdForPhoneNumber(phoneNumberId) {
+  try {
+    const mapping = JSON.parse(process.env.WHATSAPP_CLINIC_MAP || "{}");
+    const clinicId = Number(mapping[phoneNumberId]);
+    return Number.isInteger(clinicId) && clinicId > 0 ? clinicId : null;
+  } catch {
+    console.error("[WhatsApp] WHATSAPP_CLINIC_MAP must be valid JSON.");
+    return null;
+  }
+}
 
 // Temporary conversation history for local testing.
 // Messages are lost when the server restarts.
@@ -40,9 +49,8 @@ const verifyWebhook = (mode, token, challenge) => {
   return { status: 403, body: "Forbidden" };
 };
 
-const sendWhatsAppText = async (to, message) => {
+const sendWhatsAppText = async (to, message, phoneNumberId) => {
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
   if (!accessToken || !phoneNumberId) {
     console.error("[WhatsApp] Missing API credentials.");
@@ -90,16 +98,17 @@ const handleIncomingWebhook = async (payload) => {
 
       const value = change.value ?? {};
 
-      // Only process messages received by our configured demo number.
-      if (
-        value.metadata?.phone_number_id !== DEMO_PHONE_NUMBER_ID
-      ) {
-        console.warn("[WhatsApp] Ignoring an unrecognized number.");
+      // Resolve the tenant from trusted server-side configuration.
+      const phoneNumberId = value.metadata?.phone_number_id;
+      const clinicId = getClinicIdForPhoneNumber(phoneNumberId);
+
+      if (!clinicId) {
+        console.warn("[WhatsApp] Ignoring an unconfigured phone number ID.");
         continue;
       }
 
       for (const message of value.messages ?? []) {
-        if (message.type !== "text" || !message.from) continue;
+        if (message.type !== "text" || !message.from || !message.id) continue;
 
         const sender = message.from;
         const userMessage = message.text?.body?.trim();
@@ -108,26 +117,43 @@ const handleIncomingWebhook = async (payload) => {
 
         console.log(`[WhatsApp] Incoming text from ${sender}`);
 
-        const history = conversations.get(sender) ?? [];
+        // Claim each Meta message ID once. The database primary key prevents
+        // duplicate processing across retries, restarts, and server instances.
+        try {
+          await prisma.whatsAppProcessedMessage.create({
+            data: { messageId: message.id, status: "PROCESSING" },
+          });
+        } catch (error) {
+          if (error?.code === "P2002") {
+            console.log("[WhatsApp] Ignoring duplicate message ID.");
+            continue;
+          }
+          throw error;
+        }
+
+        // Scope conversation history to both tenant and sender. A patient
+        // messaging two hospital numbers must never share context across clinics.
+        const conversationKey = `${clinicId}:${sender}`;
+        const history = conversations.get(conversationKey) ?? [];
 
         try {
-          // Booking remains disabled during the first AI test.
           const reply = await askAI(
             userMessage,
             history,
-            true,
-            DEMO_CLINIC_ID,
+            process.env.AI_BOOKING_ENABLED === "true",
+            clinicId,
             {
               callerPhone: sender,
               preserveToolHistory: true,
-              allowAppointmentChanges: true,
+              allowAppointmentChanges:
+                process.env.AI_APPOINTMENT_CHANGES_ENABLED === "true",
             }
           );
 
-         const assistantMessage =
-  typeof reply === "string"
-    ? reply
-    : reply?.response;
+          const assistantMessage =
+            typeof reply === "string"
+              ? reply
+              : reply?.response;
           if (!assistantMessage) {
             throw new Error("AI returned no readable reply.");
           }
@@ -140,15 +166,34 @@ const handleIncomingWebhook = async (payload) => {
             { role: "assistant", content: assistantMessage },
           ];
 
-          conversations.set(sender, updatedHistory);
+          conversations.set(conversationKey, updatedHistory);
 
-          await sendWhatsAppText(sender, assistantMessage);
+          // Mark the event processed before sending the reply. If delivery fails,
+          // Meta retries must not repeat a booking/cancellation side effect.
+          await prisma.whatsAppProcessedMessage.update({
+            where: { messageId: message.id },
+            data: { status: "PROCESSED" },
+          });
+          await sendWhatsAppText(sender, assistantMessage, phoneNumberId);
         } catch (error) {
           console.error("[WhatsApp] AI processing failed:", error.message);
 
+          // Do not release the deduplication claim after an AI/tool failure:
+          // the tool may already have changed an appointment before a later
+          // step failed. Replaying could repeat a consequential action.
+          try {
+            await prisma.whatsAppProcessedMessage.update({
+              where: { messageId: message.id },
+              data: { status: "FAILED" },
+            });
+          } catch (statusError) {
+            console.error("[WhatsApp] Could not mark message failed:", statusError.message);
+          }
+
           await sendWhatsAppText(
             sender,
-            "Sorry, I'm having trouble responding right now. Please try again shortly."
+            "Sorry, I'm having trouble responding right now. Please try again shortly.",
+            phoneNumberId
           );
         }
       }
